@@ -1,17 +1,20 @@
 # based on https://gist.github.com/azatoth/1030091
+# TODO(at15): it is also possible to generate it automatically using awk etc.
 define GOMMON_MAKEFILE_HELP_MSG
 Make commands for gommon
 
 help           show help
 
-Dev:
+Dev
+-----------------------------------------
 install           install binaries under ./cmd to $$GOPATH/bin
 fmt               goimports
-test              unit test
+test              run unit test
 generate          generate code using gommon
 loc               lines of code (cloc required, brew install cloc)
 
-Build:
+Build
+-----------------------------------------
 install        install all binaries under ./cmd to $$GOPATH/bin
 build          compile all binary to ./build for current platform
 build-linux    compile all linux binary to ./build with -linux suffix
@@ -19,7 +22,8 @@ build-mac      compile all mac binary to ./build with -mac suffix
 build-win      compile all windows binary to ./build with -win suffix
 build-release  compile binary for all platforms and generate tarball to ./build
 
-Docker:
+Docker
+-----------------------------------------
 docker-build   build runner image w/ all binaries using mulitstage build
 docker-push    push runner image to docker registry
 
@@ -31,25 +35,38 @@ export GOMMON_MAKEFILE_HELP_MSG
 help:
 	@echo "$$GOMMON_MAKEFILE_HELP_MSG"
 
-GO = GO111MODULE=on go
+GO = GO111MODULE=on CGO_ENABLED=0 go
 # -- build vars ---
-PKGS =./errors/... ./generator/... ./httpclient/... ./log/... ./noodle/... ./util/...
-PKGST =./cmd ./errors ./generator ./httpclient ./log ./noodle ./util
+PKGST =./cmd ./dcli ./errors ./generator ./httpclient ./linter ./log ./noodle ./util ./tconfig
+PKGS = $(addsuffix ...,$(PKGST))
 VERSION = 0.0.13
 BUILD_COMMIT := $(shell git rev-parse HEAD)
+BUILD_BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 BUILD_TIME := $(shell date +%Y-%m-%dT%H:%M:%S%z)
 CURRENT_USER = $(USER)
 FLAGS = -X main.version=$(VERSION) -X main.commit=$(BUILD_COMMIT) -X main.buildTime=$(BUILD_TIME) -X main.buildUser=$(CURRENT_USER)
 DOCKER_REPO = dyweb/gommon
+DCLI_PKG = github.com/dyweb/gommon/dcli.
+DCLI_LDFLAGS = -X $(DCLI_PKG)buildVersion=$(VERSION) -X $(DCLI_PKG)buildCommit=$(BUILD_COMMIT) -X $(DCLI_PKG)buildBranch=$(BUILD_BRANCH) -X $(DCLI_PKG)buildTime=$(BUILD_TIME) -X $(DCLI_PKG)buildUser=$(CURRENT_USER)
 # -- build vars ---
 
 .PHONY: install
-install: fmt test
+install: fmt test install-only
+
+install-only:
 	cd ./cmd/gommon && $(GO) install -ldflags "$(FLAGS)" .
 	mv $(GOPATH)/bin/gommonbin $(GOPATH)/bin/gommon
 
+.PHONY: install2
+install2:
+	cd ./cmd/gommon2 && $(GO) install -ldflags "$(DCLI_LDFLAGS)" .
+
 .PHONY: fmt
 fmt:
+	gommon format -d -l -w $(PKGST)
+
+# gommon format is a drop in replacement for goimports
+deprecated-fmt:
 	goimports -d -l -w $(PKGST)
 
 # --- build ---
@@ -135,11 +152,6 @@ docker-build:
 
 docker-push:
 	docker push $(DOCKER_REPO):$(VERSION)
-
-docker-test:
-	docker-compose -f hack/docker-compose.yml run --rm golang1.12
-# TODO: not sure why the latest one is not using ...
-#	docker-compose -f hack/docker-compose.yml run --rm golanglatest
 
 #.PHONY: docker-remove-all-containers
 #docker-remove-all-containers:

@@ -7,10 +7,8 @@ import (
 
 var _ context.Context = (*Context)(nil)
 
-// Context
-//
-// It is lazy initialized, only call `make` when they are actually write to,
-// so all the maps are EMPTY even when using factory func.
+// Context implements context.Context and provides HTTP request specific helpers.
+// It is lazy initialized, only call `make` when there is write to internal maps.
 // User (including this package itself) should use setter when set value.
 type Context struct {
 	// base overrides base path set in client if it is not empty
@@ -23,9 +21,7 @@ type Context struct {
 	// if it has non nil value
 	errHandler ErrorHandler
 
-	// values improve performance by set value in place
-	// TODO: do I really need this map?
-	values map[string]interface{}
+	// wraps a standard context implementation for value and deadline
 	stdCtx context.Context
 }
 
@@ -57,6 +53,8 @@ func ConvertContext(ctx context.Context) *Context {
 	return NewContext(ctx)
 }
 
+// SetBase allow a single request to override client level request base.
+// This is useful when most request is /api/bla and suddenly there is a /bla/api.
 func (c *Context) SetBase(s string) *Context {
 	c.base = s
 	return c
@@ -114,15 +112,6 @@ func (c *Context) Err() error {
 // if not found, it use the underlying context.Context if is set
 // if not set, it returns nil
 func (c *Context) Value(key interface{}) interface{} {
-	if c != nil && c.values != nil {
-		k, ok := key.(string)
-		if ok {
-			v, ok := c.values[k]
-			if ok {
-				return v
-			}
-		}
-	}
 	if c != nil && c.stdCtx != nil {
 		return c.stdCtx.Value(key)
 	}

@@ -1,5 +1,5 @@
 DOCKER_REPO = dyweb/go-dev
-GO_VERSIONS = 1.14
+GO_VERSIONS = 1.15.3
 BUILDS = $(addprefix build-, $(GO_VERSIONS))
 PUSHS = $(addprefix push-, $(GO_VERSIONS))
 
@@ -16,4 +16,4 @@ build: $(BUILDS)
 push: $(PUSHS)
 
 run:
-	docker run --rm -it --entrypoint /bin/bash $(DOCKER_REPO):1.11.4
+	docker run --rm -it --entrypoint /bin/bash $(DOCKER_REPO):1.15.3
